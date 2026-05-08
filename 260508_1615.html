@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>기자재 및 공간 예약 시스템</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React & Babel for Standalone HTML -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  
+  <style>
+    body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; background-color: #f9fafb; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Firebase 로드 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+    window.Firebase = {
+      initializeApp, getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc,
+      getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken
+    };
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- Lucide Icons (Inline SVG Components - 최종v1 디자인 유지용) ---
+    const IconWrapper = ({ children, className }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        {children}
+      </svg>
+    );
+
+    const Calendar = ({className}) => <IconWrapper className={className}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></IconWrapper>;
+    const Monitor = ({className}) => <IconWrapper className={className}><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></IconWrapper>;
+    const Box = ({className}) => <IconWrapper className={className}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></IconWrapper>;
+    const CheckCircle = ({className}) => <IconWrapper className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></IconWrapper>;
+    const XCircle = ({className}) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></IconWrapper>;
+    const User = ({className}) => <IconWrapper className={className}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></IconWrapper>;
+    const Shield = ({className}) => <IconWrapper className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></IconWrapper>;
+    const Search = ({className}) => <IconWrapper className={className}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></IconWrapper>;
+    const X = ({className}) => <IconWrapper className={className}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></IconWrapper>;
+    const AlertCircle = ({className}) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></IconWrapper>;
+    const Lock = ({className}) => <IconWrapper className={className}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></IconWrapper>;
+    const ChevronLeft = ({className}) => <IconWrapper className={className}><polyline points="15 18 9 12 15 6"></polyline></IconWrapper>;
+    const ChevronRight = ({className}) => <IconWrapper className={className}><polyline points="9 18 15 12 9 6"></polyline></IconWrapper>;
+
+    const INITIAL_ITEMS = [
+      { id: 1, type: 'space', name: '회의실', description: '회의 및 스터디 목적 (평일 09:00~20:00)', capacity: 8, image: 'https://placehold.co/400x300/1e3a8a/ffffff?text=Meeting+Room', startTime: 9, endTime: 20, isWeekendAllowed: false },
+      { id: 2, type: 'equipment', name: '3D 프린터', description: '시제품 제작용 (평일 09:00~17:00)', quantity: 2, image: 'https://placehold.co/400x300/047857/ffffff?text=3D+Printer', startTime: 9, endTime: 17, isWeekendAllowed: false },
+      // 명칭 변경: 재봉틀 및 오버록
+      { id: 3, type: 'equipment', name: '재봉틀 및 오버록', description: '의류 및 직물 작업 (평일 09:00~17:00)', quantity: 3, image: 'https://placehold.co/400x300/047857/ffffff?text=Sewing+Machine', startTime: 9, endTime: 17, isWeekendAllowed: false },
+      { id: 4, type: 'equipment', name: '컴퓨터자수기', description: '사전교육 이수 필수 (평일 09:00~17:00)', quantity: 1, image: 'https://placehold.co/400x300/b91c1c/ffffff?text=Embroidery', startTime: 9, endTime: 17, isWeekendAllowed: false, requiresTraining: true },
+    ];
+
+    const StatusBadge = ({ status }) => {
+      switch(status) {
+        case 'pending': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><AlertCircle className="w-3 h-3 mr-1"/> 대기중</span>;
+        case 'approved': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1"/> 승인됨</span>;
+        case 'rejected': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1"/> 반려됨</span>;
+        case 'cancelled': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"><XCircle className="w-3 h-3 mr-1"/> 취소됨</span>;
+        default: return null;
+      }
+    };
+
+    function App() {
+      // Firebase states
+      const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+      const [db, setDb] = useState(null);
+      const [appId, setAppId] = useState('reservation-system-v1');
+
+      // Main states
+      const [role, setRole] = useState('user');
+      const [activeTab, setActiveTab] = useState('spaces');
+      const [items, setItems] = useState(INITIAL_ITEMS);
+      const [reservations, setReservations] = useState([]);
+      
+      // Modals
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [selectedItem, setSelectedItem] = useState(null);
+      const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+      const [adminPasswordInput, setAdminPasswordInput] = useState('');
+      const [adminAuthError, setAdminAuthError] = useState('');
+      const [alertModal, setAlertModal] = useState({ isOpen: false, message: '' });
+      const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: '', onConfirm: null });
+      
+      // 반려 사유 모달 추가
+      const [rejectData, setRejectData] = useState({ isOpen: false, id: null, reason: '' });
+
+      const [formData, setFormData] = useState({
+        companyName: '', applicantName: '', phoneNumber: '', pin: '', date: '', startTime: '', endTime: '', purpose: '', isTrained: false
+      });
+
+      const [searchData, setSearchData] = useState({ applicantName: '', pin: '' });
+      const [searchedResults, setSearchedResults] = useState(null);
+      const [currentMonth, setCurrentMonth] = useState(new Date()); 
+      const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
+
+      // 1. Firebase 초기화
+      useEffect(() => {
+        const initFirebase = () => {
+          const { initializeApp, getFirestore, getAuth, signInAnonymously } = window.Firebase;
+          const userFirebaseConfig = {
+            apiKey: "AIzaSyBsi1Kr7TpCPgNhffRpUM-RMVJNmyKLQUk",
+            authDomain: "reservation-system-dc1fb.firebaseapp.com",
+            projectId: "reservation-system-dc1fb",
+            storageBucket: "reservation-system-dc1fb.firebasestorage.app",
+            messagingSenderId: "546672953445",
+            appId: "1:546672953445:web:6a02e87502bf0945d5de8c"
+          };
+
+          const configToUse = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : userFirebaseConfig;
+          const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'reservation-app';
+          
+          setAppId(currentAppId);
+          const app = initializeApp(configToUse);
+          const database = getFirestore(app);
+          const authentication = getAuth(app);
+          
+          setDb(database);
+          signInAnonymously(authentication).catch(err => console.error(err));
+          setIsFirebaseReady(true);
+        };
+
+        if (window.Firebase) initFirebase();
+        else window.addEventListener('firebase-ready', initFirebase);
+        return () => window.removeEventListener('firebase-ready', initFirebase);
+      }, []);
+
+      // 2. Firebase 데이터 연동
+      useEffect(() => {
+        if (!db || !isFirebaseReady) return;
+        const { collection, onSnapshot } = window.Firebase;
+        const q = collection(db, 'artifacts', appId, 'public', 'data', 'bookings');
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          setReservations(data);
+        });
+        return () => unsubscribe();
+      }, [db, appId, isFirebaseReady]);
+
+      // 이벤트 핸들러
+      const handleInputChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        if (name === 'phoneNumber') {
+          let val = value.replace(/\D/g, ''); 
+          if (val.length > 11) val = val.slice(0, 11);
+          let formatted = val;
+          if (val.length > 3 && val.length <= 7) formatted = `${val.slice(0, 3)}-${val.slice(3)}`;
+          else if (val.length > 7) formatted = `${val.slice(0, 3)}-${val.slice(3, 7)}-${val.slice(7)}`;
+          setFormData(prev => ({ ...prev, [name]: formatted }));
+          return;
+        }
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+      };
+
+      const handleSearchChange = (e) => {
+        const { name, value } = e.target;
+        setSearchData(prev => ({ ...prev, [name]: value }));
+      };
+
+      const showAlert = (message) => setAlertModal({ isOpen: true, message });
+      const showConfirm = (message, onConfirmCallback) => setConfirmModal({ isOpen: true, message, onConfirm: onConfirmCallback });
+
+      const executeConfirm = () => {
+        if (confirmModal.onConfirm) confirmModal.onConfirm();
+        setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+      };
+
+      // CRUD 함수들
+      const cancelReservation = async (id) => {
+        const { updateDoc, doc } = window.Firebase;
+        try {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bookings', id), { status: 'cancelled' });
+          setSearchedResults(prev => prev ? prev.map(res => res.id === id ? { ...res, status: 'cancelled' } : res) : null);
+          showAlert('예약이 성공적으로 취소되었습니다.');
+        } catch (err) { showAlert('오류가 발생했습니다.'); }
+      };
+
+      const deleteReservation = async (id) => {
+        const { deleteDoc, doc } = window.Firebase;
+        try {
+          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bookings', id));
+          showAlert('예약 내역이 완전히 삭제되었습니다.');
+        } catch (err) { showAlert('삭제 중 오류가 발생했습니다.'); }
+      };
+
+      // 상태 업데이트 (+ 반려 사유 추가)
+      const updateReservationStatus = async (id, newStatus, reason = null) => {
+        const { updateDoc, doc } = window.Firebase;
+        try {
+          const updateData = { status: newStatus };
+          if (reason) updateData.rejectReason = reason;
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bookings', id), updateData);
+        } catch (err) { showAlert('상태 변경 중 오류가 발생했습니다.'); }
+      };
+
+      // 반려 확정 함수
+      const confirmReject = async () => {
+        if (!rejectData.reason.trim()) {
+          showAlert('반려 사유를 상세히 입력해주세요.');
+          return;
+        }
+        await updateReservationStatus(rejectData.id, 'rejected', rejectData.reason);
+        setRejectData({ isOpen: false, id: null, reason: '' });
+      };
+
+      // 예약 가능 시간 계산
+      const getAvailableHours = () => {
+        if (!selectedItem || !formData.date) return [];
+        const dateObj = new Date(formData.date);
+        const day = dateObj.getDay();
+        if (!selectedItem.isWeekendAllowed && (day === 0 || day === 6)) return []; 
+
+        const hours = [];
+        for (let i = selectedItem.startTime; i < selectedItem.endTime; i++) {
+          const overlappingRes = reservations.filter(r => {
+            if (r.itemId !== selectedItem.id || r.date !== formData.date || r.status === 'rejected' || r.status === 'cancelled') return false;
+            const [startStr, endStr] = r.time.split(' - ');
+            return parseInt(startStr) <= i && i < parseInt(endStr);
+          });
+          const maxCapacity = selectedItem.type === 'space' ? 1 : (selectedItem.quantity || 1);
+          if (overlappingRes.length < maxCapacity) hours.push(i);
+        }
+        return hours;
+      };
+
+      const availableHours = getAvailableHours();
+
+      const getValidEndTimes = () => {
+        if (formData.startTime === '') return [];
+        const start = parseInt(formData.startTime);
+        const endTimes = [];
+        for (let h = start; h < selectedItem.endTime; h++) {
+          if (availableHours.includes(h)) endTimes.push(h + 1);
+          else break; 
+        }
+        return endTimes;
+      };
+
+      const validEndTimes = getValidEndTimes();
+
+      const handleSubmitReservation = async (e) => {
+        e.preventDefault();
+        if (formData.pin.length !== 4) { showAlert('예약 확인용 비밀번호는 4자리 숫자로 입력해주세요.'); return; }
+        if (selectedItem.requiresTraining && !formData.isTrained) { showAlert('사전 교육 이수 확인이 필요합니다.'); return; }
+        if (formData.startTime === '' || formData.endTime === '') { showAlert('시작 시간과 종료 시간을 모두 선택해주세요.'); return; }
+
+        const timeString = `${String(formData.startTime).padStart(2, '0')}:00 - ${String(formData.endTime).padStart(2, '0')}:00`;
+        const newReservation = {
+          itemId: selectedItem.id,
+          itemName: selectedItem.name,
+          companyName: formData.companyName,
+          applicantName: formData.applicantName,
+          phoneNumber: formData.phoneNumber,
+          pin: formData.pin,
+          date: formData.date,
+          time: timeString,
+          purpose: formData.purpose,
+          status: 'pending',
+          createdAt: new Date().toISOString()
+        };
+        
+        const { addDoc, collection } = window.Firebase;
+        try {
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'), newReservation);
+          setIsModalOpen(false);
+          showAlert('예약 신청이 완료되었습니다. 관리자 승인 후 최종 확정됩니다.');
+        } catch (err) { showAlert('예약 신청 중 문제가 발생했습니다.'); }
+      };
+
+      const handleSearchReservation = (e) => {
+        e.preventDefault();
+        if (!searchData.applicantName || !searchData.pin) { showAlert('신청자명과 비밀번호를 모두 입력해주세요.'); return; }
+        const results = reservations.filter(r => r.applicantName === searchData.applicantName && r.pin === searchData.pin);
+        setSearchedResults(results);
+      };
+
+      const handleAdminLogin = (e) => {
+        e.preventDefault();
+        if (adminPasswordInput === 'admin1234') {
+          setRole('admin'); setIsAdminModalOpen(false); setAdminPasswordInput(''); setAdminAuthError('');
+        } else { setAdminAuthError('비밀번호가 일치하지 않습니다.'); }
+      };
+
+      const handleRoleToggle = (targetRole) => {
+        if (targetRole === 'admin' && role !== 'admin') setIsAdminModalOpen(true);
+        else if (targetRole === 'user') { setRole('user'); setSearchedResults(null); setSearchData({ applicantName: '', pin: '' }); }
+      };
+
+      // 달력 함수
+      const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+      const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+      
+      const renderCalendar = () => {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const approvedRes = reservations.filter(r => r.status === 'approved');
+        
+        const days = [];
+        for (let i = 0; i < firstDayIndex; i++) days.push(<div key={`empty-${i}`} className="bg-gray-50/50 min-h-[80px] border border-gray-100 rounded-lg"></div>);
+        
+        for (let i = 1; i <= daysInMonth; i++) {
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+          const dayReservations = approvedRes.filter(r => r.date === dateStr);
+          const isSelected = selectedCalendarDate === dateStr;
+          
+          days.push(
+            <div key={i} onClick={() => dayReservations.length > 0 && setSelectedCalendarDate(isSelected ? null : dateStr)}
+              className={`min-h-[80px] border rounded-lg p-2 transition-all ${dayReservations.length > 0 ? 'cursor-pointer hover:border-blue-400 hover:shadow-sm bg-white' : 'bg-gray-50/30 border-gray-100'} ${isSelected ? 'ring-2 ring-blue-500 border-transparent' : 'border-gray-200'}`}
+            >
+              <div className="font-medium text-sm text-gray-700 mb-1">{i}</div>
+              <div className="space-y-1">
+                {dayReservations.slice(0, 2).map((res, idx) => (
+                  <div key={idx} className="text-[10px] leading-tight bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded truncate" title={`${res.companyName}(${res.itemName}) (${res.time})`}>
+                    {res.companyName}({res.itemName})
+                  </div>
+                ))}
+                {dayReservations.length > 2 && <div className="text-[10px] text-gray-500 font-medium px-1">+{dayReservations.length - 2}건 더보기</div>}
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="mt-8 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-8">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <Calendar className="w-6 h-6 text-blue-600 mr-2" />
+                <h3 className="text-2xl font-bold text-gray-900">예약 현황 달력</h3>
+              </div>
+              <div className="flex items-center space-x-4">
+                <button type="button" onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><ChevronLeft className="w-5 h-5 text-gray-600"/></button>
+                <span className="text-lg font-bold text-gray-800 w-24 text-center">{year}년 {month + 1}월</span>
+                <button type="button" onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><ChevronRight className="w-5 h-5 text-gray-600"/></button>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {['일', '월', '화', '수', '목', '금', '토'].map((day, i) => (
+                <div key={day} className={`text-center text-sm font-medium py-2 ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-gray-500'}`}>{day}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-2">{days}</div>
+
+            {selectedCalendarDate && (
+              <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                <h4 className="font-bold text-blue-900 mb-3">{selectedCalendarDate} 예약 상세</h4>
+                <div className="space-y-2">
+                  {approvedRes.filter(r => r.date === selectedCalendarDate).map(res => (
+                    <div key={res.id} className="bg-white p-3 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-blue-50">
+                      <div>
+                        <span className="font-bold text-gray-900 mr-2">{res.itemName}</span>
+                        <span className="text-sm text-gray-600">{res.companyName} ({res.applicantName.replace(/(?<=^.)./, '*')})</span>
+                      </div>
+                      <div className="text-sm font-medium text-blue-700 bg-blue-100 px-3 py-1 rounded-full whitespace-nowrap text-center">{res.time}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      const filteredItems = items.filter(item => item.type === (activeTab === 'spaces' ? 'space' : 'equipment'));
+      const pendingCount = reservations.filter(r => r.status === 'pending').length;
+
+      if (!isFirebaseReady) return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">데이터베이스 연동 및 로딩 중...</p>
+          </div>
+        </div>
+      );
+
+      return (
+        <div className="min-h-screen bg-gray-50 font-sans pb-12">
+          {/* Navigation */}
+          <nav className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between h-16">
+                <div className="flex items-center">
+                  <Calendar className="w-8 h-8 text-blue-600 mr-2" />
+                  <span className="text-xl font-bold text-gray-900">ReserV System</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="flex items-center bg-gray-100 p-1 rounded-lg border border-gray-200">
+                    <button onClick={() => handleRoleToggle('user')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center ${role === 'user' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                      <User className="w-4 h-4 mr-1" /> 사용자 모드
+                    </button>
+                    <button onClick={() => handleRoleToggle('admin')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center ${role === 'admin' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                      <Shield className="w-4 h-4 mr-1" /> 관리자 모드
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </nav>
+
+          {/* Main Content */}
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {role === 'user' ? (
+              <div className="space-y-8">
+                {/* Banner */}
+                <div className="bg-blue-600 rounded-2xl p-8 text-white shadow-lg flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold mb-2">필요한 공간과 장비를 예약하세요</h2>
+                    <p className="text-blue-100">원하는 날짜와 시간을 선택하고 간편하게 신청하세요.</p>
+                  </div>
+                  <Calendar className="w-24 h-24 text-blue-400 opacity-50 hidden md:block" />
+                </div>
+
+                {/* Tabs */}
+                <div className="flex space-x-4 border-b border-gray-200">
+                  <button onClick={() => setActiveTab('spaces')} className={`pb-4 px-4 text-lg font-medium border-b-2 transition-colors ${activeTab === 'spaces' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                    <Box className="w-5 h-5 inline-block mr-2" /> 공간 예약
+                  </button>
+                  <button onClick={() => setActiveTab('equipments')} className={`pb-4 px-4 text-lg font-medium border-b-2 transition-colors ${activeTab === 'equipments' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                    <Monitor className="w-5 h-5 inline-block mr-2" /> 기자재 예약
+                  </button>
+                </div>
+
+                {/* Item Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredItems.map(item => (
+                    <div key={item.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                      <img src={item.image} alt={item.name} className="w-full h-48 object-cover" />
+                      <div className="p-5 flex flex-col flex-grow">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="text-xl font-bold text-gray-900">{item.name}</h3>
+                          <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            {item.type === 'space' ? `최대 ${item.capacity}인` : `총 ${item.quantity}개`}
+                          </span>
+                        </div>
+                        <p className="text-gray-600 text-sm mb-4 flex-grow">{item.description}</p>
+                        <button 
+                          onClick={() => { 
+                            setSelectedItem(item); 
+                            setFormData({ companyName: '', applicantName: '', phoneNumber: '', pin: '', date: '', startTime: '', endTime: '', purpose: '', isTrained: false });
+                            setIsModalOpen(true); 
+                          }}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors mt-auto"
+                        >
+                          예약 신청하기
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Reservation Lookup Section */}
+                <div className="mt-16 pt-8 border-t border-gray-200">
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-8">
+                    <div className="flex items-center mb-6">
+                      <Search className="w-6 h-6 text-blue-600 mr-2" />
+                      <h3 className="text-2xl font-bold text-gray-900">예약 조회</h3>
+                    </div>
+                    <p className="text-gray-500 mb-6">예약 신청 시 입력했던 신청자명과 4자리 비밀번호를 입력하여 예약 상태를 확인하세요.</p>
+                    
+                    <form onSubmit={handleSearchReservation} className="flex flex-col sm:flex-row gap-4 mb-8" autoComplete="off">
+                      <input 
+                        type="text" name="applicantName" placeholder="신청자명" required
+                        value={searchData.applicantName} onChange={handleSearchChange}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoComplete="off"
+                      />
+                      {/* 비밀번호 팝업 해결 핵심: type="text" 와 WebkitTextSecurity 적용 */}
+                      <input 
+                        type="text" name="pin" placeholder="비밀번호 4자리" required maxLength={4}
+                        value={searchData.pin} onChange={(e) => setSearchData({...searchData, pin: e.target.value.replace(/[^0-9]/g, '')})} 
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style={{ WebkitTextSecurity: 'disc' }}
+                        inputMode="numeric"
+                        autoComplete="new-password"
+                      />
+                      <button type="submit" className="px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-colors">
+                        예약 내역 조회
+                      </button>
+                    </form>
+
+                    {searchedResults !== null && (
+                      <div className="mt-6">
+                        {searchedResults.length > 0 ? (
+                          <div className="overflow-x-auto rounded-lg border border-gray-200">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">신청 항목</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">예약 일시</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
+                                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">관리</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {searchedResults.map((res) => (
+                                  <tr key={res.id}>
+                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{res.itemName}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{res.date} <br/> {res.time}</td>
+                                    <td className="px-6 py-4">
+                                      <StatusBadge status={res.status} />
+                                      {/* 사용자에게 반려 사유 노출 */}
+                                      {res.status === 'rejected' && res.rejectReason && (
+                                        <div className="text-xs text-red-600 mt-1 font-medium break-keep">사유: {res.rejectReason}</div>
+                                      )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                      {(res.status === 'pending' || res.status === 'approved') && (
+                                        <button onClick={() => showConfirm('정말 예약을 취소하시겠습니까?', () => cancelReservation(res.id))} className="text-sm text-red-600 hover:text-red-800 font-medium px-3 py-1 border border-red-200 rounded hover:bg-red-50 transition-colors">
+                                          예약 취소
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
+                            <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-gray-600 font-medium">일치하는 예약 내역이 없습니다.</p>
+                            <p className="text-sm text-gray-500 mt-1">이름과 비밀번호를 다시 확인해주세요.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {renderCalendar()}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Admin Dashboard UI */}
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">관리자 대시보드</h2>
+                    <p className="text-gray-500">예약 신청 내역을 검토하고 승인/반려를 처리하세요.</p>
+                  </div>
+                  <div className="bg-white px-6 py-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-4">
+                    <div className="p-3 bg-yellow-100 rounded-full"><AlertCircle className="w-6 h-6 text-yellow-600" /></div>
+                    <div>
+                      <p className="text-sm text-gray-500 font-medium">승인 대기 중</p>
+                      <p className="text-2xl font-bold text-gray-900">{pendingCount}건</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                    <h3 className="font-semibold text-gray-700">전체 예약 요청 목록</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-white">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">신청자 정보</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">신청 항목 및 일시</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">사용 목적</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {reservations.map((res) => (
+                          <tr key={res.id} className={res.status === 'pending' ? 'bg-yellow-50/30' : ''}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-bold text-gray-900">{res.applicantName}</div>
+                              <div className="text-xs text-gray-500">{res.companyName}</div>
+                              <div className="text-xs text-gray-500 mt-1">{res.phoneNumber}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-bold text-gray-900">{res.itemName}</div>
+                              <div className="text-sm text-blue-600">{res.date}</div>
+                              <div className="text-xs text-gray-500">{res.time}</div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={res.purpose}>{res.purpose}</td>
+                            <td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={res.status} /></td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                              <div className="flex justify-center items-center space-x-2">
+                                {res.status === 'pending' ? (
+                                  <span className="flex space-x-2">
+                                    <button onClick={() => updateReservationStatus(res.id, 'approved')} className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                                      승인
+                                    </button>
+                                    <button onClick={() => setRejectData({ isOpen: true, id: res.id, reason: '' })} className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                      반려
+                                    </button>
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400 text-xs mr-1">처리완료</span>
+                                )}
+                                <button onClick={() => showConfirm('이 예약 내역을 완전히 삭제하시겠습니까?', () => deleteReservation(res.id))} className="inline-flex items-center px-3 py-1.5 border border-red-200 text-xs font-medium rounded-md text-red-600 bg-white hover:bg-red-50">
+                                  삭제
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+
+          {/* Reservation Modal */}
+          {isModalOpen && selectedItem && (
+            <div className="fixed inset-0 z-50 overflow-y-auto">
+              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={() => setIsModalOpen(false)}></div>
+                <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+                <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-xl sm:w-full">
+                  <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div className="flex justify-between items-center mb-5 border-b pb-3">
+                      <h3 className="text-xl font-bold text-gray-900">예약 신청서 작성</h3>
+                      <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
+                    </div>
+                    
+                    <div className="bg-blue-50 rounded-lg p-4 mb-6 flex items-center border border-blue-100">
+                      <div className="w-16 h-16 rounded overflow-hidden mr-4 flex-shrink-0">
+                        <img src={selectedItem.image} alt="thumbnail" className="w-full h-full object-cover" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-1 rounded-full mb-1 inline-block">
+                          {selectedItem.type === 'space' ? '공간' : '기자재'}
+                        </span>
+                        <p className="font-bold text-gray-900 text-lg">{selectedItem.name}</p>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleSubmitReservation} className="space-y-5 text-left" autoComplete="off">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">신청기업명 <span className="text-red-500">*</span></label>
+                          <input type="text" required name="companyName" value={formData.companyName} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="소속을 입력하세요" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">신청자명 <span className="text-red-500">*</span></label>
+                          <input type="text" required name="applicantName" value={formData.applicantName} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="이름을 입력하세요" />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">휴대전화번호 <span className="text-red-500">*</span></label>
+                          <input type="tel" required name="phoneNumber" value={formData.phoneNumber} onChange={handleInputChange} maxLength={13} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="010-0000-0000" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호 (조회용) <span className="text-red-500">*</span></label>
+                          {/* 비밀번호 팝업 방지용 input 설정 */}
+                          <input 
+                            type="text" required name="pin" 
+                            value={formData.pin} onChange={(e) => setFormData({...formData, pin: e.target.value.replace(/[^0-9]/g, '')})}
+                            maxLength={4} pattern="\d{4}" title="숫자 4자리"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                            placeholder="숫자 4자리 입력"
+                            style={{ WebkitTextSecurity: 'disc' }}
+                            inputMode="numeric"
+                            autoComplete="new-password"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-gray-100">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">예약 날짜 <span className="text-red-500">*</span></label>
+                          <input type="date" required name="date" value={formData.date} onChange={(e) => { handleInputChange(e); setFormData(prev => ({ ...prev, startTime: '', endTime: '' })); }} min={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">시작 시간 <span className="text-red-500">*</span></label>
+                          <select required name="startTime" value={formData.startTime} onChange={(e) => { handleInputChange(e); setFormData(prev => ({ ...prev, endTime: '' })); }} disabled={!formData.date || availableHours.length === 0} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500">
+                            <option value="">{formData.date ? (availableHours.length > 0 ? '시작 시간 선택' : '해당일 마감') : '날짜 선택'}</option>
+                            {availableHours.map(h => <option key={`start-${h}`} value={h}>{String(h).padStart(2, '0')}:00</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">종료 시간 <span className="text-red-500">*</span></label>
+                          <select required name="endTime" value={formData.endTime} onChange={handleInputChange} disabled={formData.startTime === ''} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500">
+                            <option value="">종료 시간 선택</option>
+                            {validEndTimes.map(h => <option key={`end-${h}`} value={h}>{String(h).padStart(2, '0')}:00</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      {selectedItem.requiresTraining && (
+                        <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-start mt-2">
+                          <div className="flex items-center h-5 mt-0.5"><input id="isTrained" name="isTrained" type="checkbox" required checked={formData.isTrained} onChange={handleInputChange} className="focus:ring-red-500 h-4 w-4 text-red-600 border-gray-300 rounded" /></div>
+                          <div className="ml-3 text-sm"><label htmlFor="isTrained" className="font-bold text-red-800 cursor-pointer block">[필수] 해당 기자재의 사전 교육을 이수하였습니다.</label></div>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1 mt-2">사용 목적 <span className="text-red-500">*</span></label>
+                        <textarea required name="purpose" value={formData.purpose} onChange={handleInputChange} rows="3" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none" placeholder="상세한 사용 목적을 적어주세요."></textarea>
+                      </div>
+                      
+                      <div className="pt-4 mt-4 border-t border-gray-100 flex justify-end space-x-3">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">취소</button>
+                        <button type="submit" className="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">신청서 제출</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Admin Login Modal */}
+          {isAdminModalOpen && (
+            <div className="fixed inset-0 z-[60] overflow-y-auto">
+              <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={() => setIsAdminModalOpen(false)}></div>
+                <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-sm sm:w-full p-6">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-4 mx-auto"><Lock className="w-6 h-6 text-blue-600" /></div>
+                  <h3 className="text-lg font-bold text-gray-900 text-center mb-2">관리자 로그인</h3>
+                  <form onSubmit={handleAdminLogin}>
+                    <input type="password" required autoFocus placeholder="비밀번호 입력 (admin1234)" value={adminPasswordInput} onChange={(e) => { setAdminPasswordInput(e.target.value); setAdminAuthError(''); }} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 text-center" />
+                    {adminAuthError && <p className="text-sm text-red-500 mb-4 text-center">{adminAuthError}</p>}
+                    <div className="flex space-x-3 mt-6">
+                      <button type="button" onClick={() => setIsAdminModalOpen(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">취소</button>
+                      <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">인증</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Admin Reject Reason Modal */}
+          {rejectData.isOpen && (
+            <div className="fixed inset-0 z-[80] overflow-y-auto">
+              <div className="flex items-center justify-center min-h-screen px-4">
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-50" onClick={() => setRejectData({ isOpen: false, id: null, reason: '' })}></div>
+                <div className="relative bg-white rounded-xl shadow-lg p-6 max-w-md w-full">
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">예약 반려</h3>
+                  <p className="text-sm text-gray-500 mb-4">신청자에게 표시될 반려 사유를 입력해주세요.</p>
+                  <textarea
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none h-24 mb-4"
+                    placeholder="예: 해당 시간대 내부 행사로 인해 대관 불가"
+                    value={rejectData.reason}
+                    onChange={(e) => setRejectData({ ...rejectData, reason: e.target.value })}
+                  ></textarea>
+                  <div className="flex space-x-3">
+                    <button onClick={() => setRejectData({ isOpen: false, id: null, reason: '' })} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">취소</button>
+                    <button onClick={() => confirmReject()} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">반려 확정</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modals */}
+          {alertModal.isOpen && (
+            <div className="fixed inset-0 z-[70] overflow-y-auto">
+              <div className="flex items-center justify-center min-h-screen px-4">
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-50" onClick={() => setAlertModal({ isOpen: false, message: '' })}></div>
+                <div className="relative bg-white rounded-xl shadow-lg p-6 max-w-sm w-full text-center">
+                  <p className="text-gray-900 font-medium mb-6 whitespace-pre-line">{alertModal.message}</p>
+                  <button onClick={() => setAlertModal({ isOpen: false, message: '' })} className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">확인</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {confirmModal.isOpen && (
+            <div className="fixed inset-0 z-[75] overflow-y-auto">
+              <div className="flex items-center justify-center min-h-screen px-4">
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-50" onClick={() => setConfirmModal({ isOpen: false, message: '', onConfirm: null })}></div>
+                <div className="relative bg-white rounded-xl shadow-lg p-6 max-w-sm w-full text-center">
+                  <div className="w-12 h-12 rounded-full bg-red-100 mx-auto mb-4 flex items-center justify-center"><AlertCircle className="w-6 h-6 text-red-600" /></div>
+                  <p className="text-gray-900 font-medium mb-6">{confirmModal.message}</p>
+                  <div className="flex space-x-3">
+                    <button onClick={() => setConfirmModal({ isOpen: false, message: '', onConfirm: null })} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors">아니오</button>
+                    <button onClick={executeConfirm} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors">예</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
