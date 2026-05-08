@@ -61,10 +61,10 @@
 
     const INITIAL_ITEMS = [
       { id: 1, type: 'space', name: '회의실', description: '회의 및 스터디 목적 (평일 09:00~20:00)', capacity: 8, image: 'https://placehold.co/400x300/1e3a8a/ffffff?text=Meeting+Room', startTime: 9, endTime: 20, isWeekendAllowed: false },
-      { id: 2, type: 'equipment', name: '3D 프린터', description: '시제품 제작용 (평일 09:00~17:00)', quantity: 2, image: 'https://placehold.co/400x300/047857/ffffff?text=3D+Printer', startTime: 9, endTime: 17, isWeekendAllowed: false },
-      // 명칭 변경: 재봉틀 및 오버록
-      { id: 3, type: 'equipment', name: '재봉틀 및 오버록', description: '의류 및 직물 작업 (평일 09:00~17:00)', quantity: 3, image: 'https://placehold.co/400x300/047857/ffffff?text=Sewing+Machine', startTime: 9, endTime: 17, isWeekendAllowed: false },
-      { id: 4, type: 'equipment', name: '컴퓨터자수기', description: '사전교육 이수 필수 (평일 09:00~17:00)', quantity: 1, image: 'https://placehold.co/400x300/b91c1c/ffffff?text=Embroidery', startTime: 9, endTime: 17, isWeekendAllowed: false, requiresTraining: true },
+      { id: 2, type: 'equipment', name: '3D 프린터', description: '시제품 제작용 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 4, image: 'https://placehold.co/400x300/047857/ffffff?text=3D+Printer', startTime: 9, endTime: 17, isWeekendAllowed: false },
+      { id: 3, type: 'equipment', name: '재봉틀', description: '의류 및 직물 작업 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 6, image: 'https://placehold.co/400x300/047857/ffffff?text=Sewing+Machine', startTime: 9, endTime: 17, isWeekendAllowed: false },
+      { id: 4, type: 'equipment', name: '컴퓨터자수기', description: '사전교육 이수 필수 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 1, image: 'https://placehold.co/400x300/b91c1c/ffffff?text=Embroidery', startTime: 9, endTime: 17, isWeekendAllowed: false, requiresTraining: true },
+      { id: 5, type: 'equipment', name: '오버록', description: '직물 가장자리 마감 작업 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 2, image: 'https://placehold.co/400x300/047857/ffffff?text=Overlock', startTime: 9, endTime: 17, isWeekendAllowed: false },
     ];
 
     const StatusBadge = ({ status }) => {
@@ -109,6 +109,13 @@
       const [searchedResults, setSearchedResults] = useState(null);
       const [currentMonth, setCurrentMonth] = useState(new Date()); 
       const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
+
+      // 방학 기간 확인 헬퍼 함수 추가 (2026.06.22 ~ 2026.08.14)
+      const isVacation = (dateStr) => {
+        if (!dateStr) return false;
+        const dateVal = dateStr.replace(/-/g, ''); // 예: 20260622 형태의 안전한 문자열 치환
+        return dateVal >= '20260622' && dateVal <= '20260814';
+      };
 
       // 1. Firebase 초기화
       useEffect(() => {
@@ -228,8 +235,16 @@
         const day = dateObj.getDay();
         if (!selectedItem.isWeekendAllowed && (day === 0 || day === 6)) return []; 
 
+        // 기자재의 경우 방학 기간 단축 운영 적용
+        let sTime = selectedItem.startTime;
+        let eTime = selectedItem.endTime;
+        if (selectedItem.type === 'equipment' && isVacation(formData.date)) {
+          sTime = 10;
+          eTime = 16;
+        }
+
         const hours = [];
-        for (let i = selectedItem.startTime; i < selectedItem.endTime; i++) {
+        for (let i = sTime; i < eTime; i++) {
           const overlappingRes = reservations.filter(r => {
             if (r.itemId !== selectedItem.id || r.date !== formData.date || r.status === 'rejected' || r.status === 'cancelled') return false;
             const [startStr, endStr] = r.time.split(' - ');
@@ -247,7 +262,13 @@
         if (formData.startTime === '') return [];
         const start = parseInt(formData.startTime);
         const endTimes = [];
-        for (let h = start; h < selectedItem.endTime; h++) {
+        
+        let eTime = selectedItem.endTime;
+        if (selectedItem?.type === 'equipment' && isVacation(formData.date)) {
+          eTime = 16;
+        }
+
+        for (let h = start; h < eTime; h++) {
           if (availableHours.includes(h)) endTimes.push(h + 1);
           else break; 
         }
@@ -399,11 +420,22 @@
           <nav className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16">
-                <div className="flex items-center">
-                  <Calendar className="w-8 h-8 text-blue-600 mr-2" />
-                  <span className="text-xl font-bold text-gray-900">ReserV System</span>
+                <div 
+                  className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => {
+                    setRole('user');
+                    setActiveTab('spaces');
+                    setSearchedResults(null);
+                    setSearchData({ applicantName: '', pin: '' });
+                    setSelectedCalendarDate(null);
+                    setIsModalOpen(false);
+                  }}
+                  title="첫 화면으로 돌아가기"
+                >
+                  <Calendar className="w-8 h-8 text-blue-600 mr-2 flex-shrink-0" />
+                  <span className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">한성대학교 창업기업육성ICC 예약시스템</span>
                 </div>
-                <div className="flex items-center">
+                <div className="flex items-center hidden sm:flex">
                   <div className="flex items-center bg-gray-100 p-1 rounded-lg border border-gray-200">
                     <button onClick={() => handleRoleToggle('user')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center ${role === 'user' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                       <User className="w-4 h-4 mr-1" /> 사용자 모드
@@ -683,7 +715,15 @@
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-gray-100">
+                      {/* 방학 안내 배너 (기자재 + 방학기간 선택 시 나타남) */}
+                      {selectedItem.type === 'equipment' && formData.date && isVacation(formData.date) && (
+                        <div className="text-sm text-blue-700 bg-blue-50 p-3 rounded-md font-medium border border-blue-100 flex items-center mt-4">
+                          <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                          선택하신 날짜는 방학 기간(6.22~8.14)으로 기자재 단축 운영이 적용됩니다. (10:00 ~ 16:00)
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-gray-100 mt-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">예약 날짜 <span className="text-red-500">*</span></label>
                           <input type="date" required name="date" value={formData.date} onChange={(e) => { handleInputChange(e); setFormData(prev => ({ ...prev, startTime: '', endTime: '' })); }} min={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
