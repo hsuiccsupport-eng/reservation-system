@@ -59,13 +59,12 @@
     const ChevronLeft = ({className}) => <IconWrapper className={className}><polyline points="15 18 9 12 15 6"></polyline></IconWrapper>;
     const ChevronRight = ({className}) => <IconWrapper className={className}><polyline points="9 18 15 12 9 6"></polyline></IconWrapper>;
 
-    // 방학 기간 및 장비/공간 항목 업데이트
+    // 방학 기간 및 장비/공간 항목 업데이트 (재봉틀 및 오버록 원상복구 반영)
     const INITIAL_ITEMS = [
       { id: 1, type: 'space', name: '회의실', description: '회의 및 스터디 목적 (평일 09:00~20:00)', capacity: 8, image: 'https://placehold.co/400x300/1e3a8a/ffffff?text=Meeting+Room', startTime: 9, endTime: 20, isWeekendAllowed: false },
       { id: 2, type: 'equipment', name: '3D 프린터', description: '시제품 제작용 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 4, image: 'https://placehold.co/400x300/047857/ffffff?text=3D+Printer', startTime: 9, endTime: 17, isWeekendAllowed: false },
-      { id: 3, type: 'equipment', name: '재봉틀', description: '의류 및 직물 작업 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 6, image: 'https://placehold.co/400x300/047857/ffffff?text=Sewing+Machine', startTime: 9, endTime: 17, isWeekendAllowed: false },
-      { id: 4, type: 'equipment', name: '오버록', description: '직물 가장자리 마감 작업 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 2, image: 'https://placehold.co/400x300/047857/ffffff?text=Overlock', startTime: 9, endTime: 17, isWeekendAllowed: false },
-      { id: 5, type: 'equipment', name: '컴퓨터자수기', description: '사전교육 이수 필수 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 1, image: 'https://placehold.co/400x300/b91c1c/ffffff?text=Embroidery', startTime: 9, endTime: 17, isWeekendAllowed: false, requiresTraining: true },
+      { id: 3, type: 'equipment', name: '재봉틀 및 오버록', description: '의류 및 직물, 가장자리 마감 작업 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 6, image: 'https://placehold.co/400x300/047857/ffffff?text=Sewing+Machine', startTime: 9, endTime: 17, isWeekendAllowed: false },
+      { id: 4, type: 'equipment', name: '컴퓨터자수기', description: '사전교육 이수 필수 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 1, image: 'https://placehold.co/400x300/b91c1c/ffffff?text=Embroidery', startTime: 9, endTime: 17, isWeekendAllowed: false, requiresTraining: true },
     ];
 
     const StatusBadge = ({ status }) => {
@@ -80,7 +79,7 @@
     const CustomModal = ({ isOpen, title, message, onConfirm, onCancel, isConfirm }) => {
       if (!isOpen) return null;
       return (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[100] p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-7 transform transition-all">
             <h3 className="text-xl font-bold text-gray-900 mb-3">{title}</h3>
             <p className="text-gray-600 mb-8 whitespace-pre-line leading-relaxed">{message}</p>
@@ -162,7 +161,6 @@
         setViewMode('user');
         setActiveTab('space');
         setShowAdminLogin(false);
-        // 추가 상태 리셋은 UserView 하위에서 처리하거나 강제 리렌더 적용 가능
       };
 
       if (!isFirebaseReady) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-500 font-medium">시스템 로딩 중...</p></div>;
@@ -204,7 +202,6 @@
                     <Shield className="w-4 h-4 mr-1" /> 관리자 모드
                   </button>
                 </div>
-                {/* 모바일용 텍스트 간소화 버튼 */}
                 <button onClick={() => viewMode === 'admin' ? setViewMode('user') : setShowAdminLogin(true)} className="sm:hidden px-3 py-1.5 rounded-lg text-sm font-bold bg-gray-100 text-gray-700">
                   {viewMode === 'admin' ? '사용자' : '관리자'}
                 </button>
@@ -224,7 +221,6 @@
     };
 
     const UserView = ({ activeTab, setActiveTab, bookings, db, appId, showAlert, showConfirm, INITIAL_ITEMS }) => {
-      // 컴포넌트 내부 리셋용 상태
       const [selectedItem, setSelectedItem] = useState(null);
       const [isModalOpen, setIsModalOpen] = useState(false);
       
@@ -280,7 +276,7 @@
             <BookingModal item={selectedItem} bookings={bookings} db={db} appId={appId} showAlert={showAlert} onClose={() => setIsModalOpen(false)} setActiveTab={setActiveTab} />
           )}
 
-          {/* 달력은 공간/기자재 탭 하단에도 항시 노출되도록 배치 (최종v1과 동일) */}
+          {/* 달력은 공간/기자재 탭 하단에도 항시 노출되도록 배치 */}
           {activeTab !== 'lookup' && (
             <div className="mt-12">
               <BookingCalendar bookings={bookings} />
@@ -295,7 +291,6 @@
 
       const isEmbroidery = item.name === '컴퓨터자수기';
       
-      // 방학 기간 확인 함수 (2026.06.22 ~ 2026.08.14)
       const isVacation = (dateStr) => {
         if (!dateStr) return false;
         const dateVal = dateStr.replace(/-/g, ''); 
@@ -350,7 +345,6 @@
         const maxCap = item.type === 'space' ? 1 : item.quantity;
         
         let maxEndVal = opHours.end;
-        // 연속 예약 로직 (기기 수량 초과 시 연장 불가)
         for (let i = startVal + 1; i < opHours.end; i++) {
           const overlappingCount = dayBookings.filter(b => {
             const bStart = parseInt(b.startTime.split(':')[0]);
@@ -426,7 +420,6 @@
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">조회용 비밀번호 <span className="text-red-500">*</span></label>
-                      {/* 브라우저 비밀번호 팝업 방지용 input 설정 */}
                       <input 
                         type="text" required value={formData.pin} 
                         onChange={(e) => setFormData({...formData, pin: e.target.value.replace(/[^0-9]/g, '').slice(0,4)})} 
@@ -661,6 +654,8 @@
 
     const BookingCalendar = ({ bookings }) => {
       const [currentMonth, setCurrentMonth] = useState(new Date()); 
+      const [selectedBooking, setSelectedBooking] = useState(null); // 예약 상세 팝업 상태
+
       const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
       const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
 
@@ -699,8 +694,14 @@
                     {day}
                   </span>
                   <div className="flex flex-col gap-1.5 overflow-y-auto hide-scrollbar flex-1 mt-1">
+                    {/* 달력의 예약 클릭 시 팝업(selectedBooking) 설정 */}
                     {dayBookings.map(b => (
-                      <div key={b.id} className="text-[11px] font-medium leading-tight px-2 py-1.5 bg-blue-50 border border-blue-100 text-blue-800 rounded-md truncate cursor-default shadow-sm" title={`${b.companyName}(${b.itemName}) ${b.startTime}~${b.endTime}`}>
+                      <div 
+                        key={b.id} 
+                        onClick={(e) => { e.stopPropagation(); setSelectedBooking(b); }}
+                        className="text-[11px] font-medium leading-tight px-2 py-1.5 bg-blue-50 border border-blue-100 text-blue-800 rounded-md truncate cursor-pointer hover:bg-blue-100 shadow-sm transition-colors" 
+                        title="클릭하여 예약 상세 보기"
+                      >
                         {b.companyName}({b.itemName})
                       </div>
                     ))}
@@ -709,6 +710,40 @@
               );
             })}
           </div>
+
+          {/* 달력 예약 상세 모달 팝업 */}
+          {selectedBooking && (
+            <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[80] p-4 backdrop-blur-sm" onClick={() => setSelectedBooking(null)}>
+              <div className="bg-white rounded-2xl p-7 shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-5 border-b border-gray-100 pb-3">
+                  <h3 className="text-xl font-extrabold text-gray-900">예약 상세 정보</h3>
+                  <button onClick={() => setSelectedBooking(null)} className="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full p-1 transition-colors"><X className="w-5 h-5"/></button>
+                </div>
+                
+                <div className="space-y-4 text-sm text-gray-700">
+                  <div className="flex justify-between items-center bg-blue-50 p-3 rounded-lg border border-blue-100">
+                    <span className="font-bold text-blue-800">예약항목</span>
+                    <span className="font-extrabold text-blue-900">{selectedBooking.itemName}</span>
+                  </div>
+                  <p className="flex justify-between items-center px-1"><span className="font-bold text-gray-500">신청기업</span> <span className="font-bold text-gray-900">{selectedBooking.companyName}</span></p>
+                  <p className="flex justify-between items-center px-1"><span className="font-bold text-gray-500">신청자명</span> <span className="font-bold text-gray-900">{selectedBooking.applicantName.replace(/(?<=^.)./, '*')}</span></p>
+                  <p className="flex justify-between items-center px-1"><span className="font-bold text-gray-500">이용일자</span> <span className="font-bold text-gray-900">{selectedBooking.date}</span></p>
+                  <p className="flex justify-between items-center px-1"><span className="font-bold text-gray-500">이용시간</span> <span className="font-bold text-gray-900">{selectedBooking.startTime} ~ {selectedBooking.endTime}</span></p>
+                  
+                  <div className="mt-5 pt-4 border-t border-gray-100">
+                    <p className="font-bold text-gray-500 mb-2 px-1">사용 목적</p>
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-gray-800 text-sm whitespace-pre-line leading-relaxed">
+                      {selectedBooking.purpose}
+                    </div>
+                  </div>
+                </div>
+
+                <button onClick={() => setSelectedBooking(null)} className="mt-6 w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition-colors shadow-md">
+                  닫기
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       );
     };
