@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>한성대학교 창업기업육성ICC 예약시스템</title>
   
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- React & Babel for Standalone HTML -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
@@ -22,7 +20,6 @@
 <body>
   <div id="root"></div>
 
-  <!-- Firebase 로드 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -59,7 +56,6 @@
     const ChevronLeft = ({className}) => <IconWrapper className={className}><polyline points="15 18 9 12 15 6"></polyline></IconWrapper>;
     const ChevronRight = ({className}) => <IconWrapper className={className}><polyline points="9 18 15 12 9 6"></polyline></IconWrapper>;
 
-    // 방학 기간 및 장비/공간 항목 업데이트 (재봉틀 및 오버록 원상복구 반영)
     const INITIAL_ITEMS = [
       { id: 1, type: 'space', name: '회의실', description: '회의 및 스터디 목적 (평일 09:00~20:00)', capacity: 8, image: 'https://placehold.co/400x300/1e3a8a/ffffff?text=Meeting+Room', startTime: 9, endTime: 20, isWeekendAllowed: false },
       { id: 2, type: 'equipment', name: '3D 프린터', description: '시제품 제작용 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 4, image: 'https://placehold.co/400x300/047857/ffffff?text=3D+Printer', startTime: 9, endTime: 17, isWeekendAllowed: false },
@@ -100,14 +96,13 @@
       const [appId, setAppId] = useState('reservation-system-v1');
 
       const [viewMode, setViewMode] = useState('user');
-      const [activeTab, setActiveTab] = useState('space'); // 'space', 'equipment', 'lookup'
+      const [activeTab, setActiveTab] = useState('space');
       const [bookings, setBookings] = useState([]);
       
       const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', isConfirm: false, onConfirm: null, onCancel: null });
       const [showAdminLogin, setShowAdminLogin] = useState(false);
       const [adminPwd, setAdminPwd] = useState('');
       
-      // 반려 사유 모달을 위한 상태
       const [rejectModal, setRejectModal] = useState({ isOpen: false, bookingId: null, reason: '' });
 
       useEffect(() => {
@@ -182,7 +177,6 @@
             </div>
           )}
 
-          {/* Header */}
           <header className="bg-white shadow-sm sticky top-0 z-30 border-b border-gray-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
               <div 
@@ -227,24 +221,24 @@
       const filteredItems = INITIAL_ITEMS.filter(item => item.type === (activeTab === 'space' ? 'space' : 'equipment'));
 
       return (
-        <div className="space-y-8">
-          <div className="bg-blue-600 rounded-2xl p-8 text-white shadow-lg flex items-center justify-between">
+        <div className="space-y-6 md:space-y-8">
+          <div className="bg-blue-600 rounded-2xl p-6 md:p-8 text-white shadow-lg flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold mb-2">필요한 공간과 장비를 예약하세요</h2>
-              <p className="text-blue-100">원하는 날짜와 시간을 선택하고 간편하게 신청하세요.</p>
+              <h2 className="text-2xl md:text-3xl font-bold mb-2 break-keep">필요한 공간과 장비를 예약하세요</h2>
+              <p className="text-sm md:text-base text-blue-100 break-keep">원하는 날짜와 시간을 선택하고 간편하게 신청하세요.</p>
             </div>
-            <Calendar className="w-24 h-24 text-blue-400 opacity-50 hidden md:block" />
+            <Calendar className="w-24 h-24 text-blue-400 opacity-50 hidden md:block flex-shrink-0" />
           </div>
 
-          <div className="flex space-x-4 border-b border-gray-200">
-            <button onClick={() => {setActiveTab('space'); setSelectedItem(null);}} className={`pb-4 px-4 text-lg font-bold border-b-2 transition-colors ${activeTab === 'space' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              <Box className="w-5 h-5 inline-block mr-2" /> 공간 예약
+          <div className="flex overflow-x-auto hide-scrollbar space-x-2 sm:space-x-4 border-b border-gray-200">
+            <button onClick={() => {setActiveTab('space'); setSelectedItem(null);}} className={`flex items-center whitespace-nowrap flex-shrink-0 pb-3 sm:pb-4 px-2 sm:px-4 text-sm sm:text-base md:text-lg font-bold border-b-2 transition-colors ${activeTab === 'space' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              <Box className="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2" /> 공간 예약
             </button>
-            <button onClick={() => {setActiveTab('equipment'); setSelectedItem(null);}} className={`pb-4 px-4 text-lg font-bold border-b-2 transition-colors ${activeTab === 'equipment' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              <Monitor className="w-5 h-5 inline-block mr-2" /> 기자재 예약
+            <button onClick={() => {setActiveTab('equipment'); setSelectedItem(null);}} className={`flex items-center whitespace-nowrap flex-shrink-0 pb-3 sm:pb-4 px-2 sm:px-4 text-sm sm:text-base md:text-lg font-bold border-b-2 transition-colors ${activeTab === 'equipment' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              <Monitor className="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2" /> 기자재 예약
             </button>
-            <button onClick={() => {setActiveTab('lookup'); setSelectedItem(null);}} className={`pb-4 px-4 text-lg font-bold border-b-2 transition-colors ${activeTab === 'lookup' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              <Search className="w-5 h-5 inline-block mr-2" /> 예약 조회
+            <button onClick={() => {setActiveTab('lookup'); setSelectedItem(null);}} className={`flex items-center whitespace-nowrap flex-shrink-0 pb-3 sm:pb-4 px-2 sm:px-4 text-sm sm:text-base md:text-lg font-bold border-b-2 transition-colors ${activeTab === 'lookup' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              <Search className="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2" /> 예약 조회
             </button>
           </div>
 
@@ -276,7 +270,6 @@
             <BookingModal item={selectedItem} bookings={bookings} db={db} appId={appId} showAlert={showAlert} onClose={() => setIsModalOpen(false)} setActiveTab={setActiveTab} />
           )}
 
-          {/* 달력은 공간/기자재 탭 하단에도 항시 노출되도록 배치 */}
           {activeTab !== 'lookup' && (
             <div className="mt-12">
               <BookingCalendar bookings={bookings} />
@@ -654,7 +647,7 @@
 
     const BookingCalendar = ({ bookings }) => {
       const [currentMonth, setCurrentMonth] = useState(new Date()); 
-      const [selectedBooking, setSelectedBooking] = useState(null); // 예약 상세 팝업 상태
+      const [selectedBooking, setSelectedBooking] = useState(null);
 
       const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
       const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
@@ -694,7 +687,6 @@
                     {day}
                   </span>
                   <div className="flex flex-col gap-1.5 overflow-y-auto hide-scrollbar flex-1 mt-1">
-                    {/* 달력의 예약 클릭 시 팝업(selectedBooking) 설정 */}
                     {dayBookings.map(b => (
                       <div 
                         key={b.id} 
