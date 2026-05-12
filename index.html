@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>한성대학교 창업기업육성ICC 예약시스템</title>
   
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- React & Babel for Standalone HTML -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
@@ -22,7 +20,6 @@
 <body>
   <div id="root"></div>
 
-  <!-- Firebase 로드 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -58,13 +55,13 @@
     const Lock = ({className}) => <IconWrapper className={className}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></IconWrapper>;
     const ChevronLeft = ({className}) => <IconWrapper className={className}><polyline points="15 18 9 12 15 6"></polyline></IconWrapper>;
     const ChevronRight = ({className}) => <IconWrapper className={className}><polyline points="9 18 15 12 9 6"></polyline></IconWrapper>;
+    const MapPin = ({className}) => <IconWrapper className={className}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></IconWrapper>;
 
-    // 💡 여기서 image 주소를 내 깃허브에 올린 사진 주소(예: './meeting.jpg')로 바꾸시면 됩니다!
     const INITIAL_ITEMS = [
-      { id: 1, type: 'space', name: '회의실', description: '회의 및 스터디 목적 (평일 09:00~20:00)', capacity: 8, image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 20, isWeekendAllowed: false },
-      { id: 2, type: 'equipment', name: '3D 프린터', description: '시제품 제작용 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 4, image: 'https://images.unsplash.com/photo-1631281956041-cb14dce72a39?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 17, isWeekendAllowed: false },
-      { id: 3, type: 'equipment', name: '재봉틀 및 오버록', description: '의류 및 직물, 가장자리 마감 작업 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 6, image: 'https://images.unsplash.com/photo-1528819622765-d6bcf132f793?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 17, isWeekendAllowed: false },
-      { id: 4, type: 'equipment', name: '컴퓨터자수기', description: '사전교육 이수 필수 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 1, image: 'https://images.unsplash.com/photo-1620794108206-8c467a5dbbf1?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 17, isWeekendAllowed: false, requiresTraining: true },
+      { id: 1, type: 'space', name: '회의실', description: '회의 및 스터디 목적 (평일 09:00~20:00)', location: '상상큐브A동 102호 (서울 성북구 삼선교로 16길 116)', capacity: 8, image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 20, isWeekendAllowed: false },
+      { id: 2, type: 'equipment', name: '3D 프린터', description: '시제품 제작용 (학기중 09:00~17:00 / 방학중 10:00~16:00)', location: '상상랩 2층 (서울 성북구 동소문로 3길 3)', quantity: 4, image: 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 17, isWeekendAllowed: false },
+      { id: 3, type: 'equipment', name: '재봉틀 및 오버록', description: '의류 및 직물, 가장자리 마감 작업 (학기중 09:00~17:00 / 방학중 10:00~16:00)', location: '상상랩 2층 (서울 성북구 동소문로 3길 3)', quantity: 6, image: 'https://images.unsplash.com/photo-1528819622765-d6bcf132f793?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 17, isWeekendAllowed: false },
+      { id: 4, type: 'equipment', name: '컴퓨터자수기', description: '사전교육 이수 필수 (학기중 09:00~17:00 / 방학중 10:00~16:00)', location: '상상랩 2층 (서울 성북구 동소문로 3길 3)', quantity: 1, image: 'https://images.unsplash.com/photo-1599839619722-39751411ea63?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 17, isWeekendAllowed: false, requiresTraining: true },
     ];
 
     const StatusBadge = ({ status }) => {
@@ -152,7 +149,7 @@
       const showConfirm = (title, message, onConfirmCallback) => setModalConfig({ isOpen: true, title, message, isConfirm: true, onConfirm: () => { onConfirmCallback(); setModalConfig(prev => ({ ...prev, isOpen: false })); }, onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false })) });
 
       const handleAdminLogin = () => {
-        if (adminPwd === 'admin1234') { setViewMode('admin'); setShowAdminLogin(false); setAdminPwd(''); }
+        if (adminPwd === 'hsct4180') { setViewMode('admin'); setShowAdminLogin(false); setAdminPwd(''); }
         else { showAlert('로그인 실패', '비밀번호가 일치하지 않습니다.'); }
       };
 
@@ -175,7 +172,7 @@
                   <h3 className="text-xl font-bold">관리자 접속</h3>
                   <button onClick={() => setShowAdminLogin(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full p-1 transition-colors"><X className="w-5 h-5"/></button>
                 </div>
-                <input type="password" placeholder="비밀번호 입력 (admin1234)" className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none mb-4 bg-gray-50 transition-all" value={adminPwd} onChange={(e) => setAdminPwd(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} />
+                <input type="password" placeholder="관리자 비밀번호 입력" className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none mb-4 bg-gray-50 transition-all" value={adminPwd} onChange={(e) => setAdminPwd(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} />
                 <button onClick={handleAdminLogin} className="w-full bg-gray-900 text-white p-4 rounded-xl hover:bg-gray-800 font-bold text-lg transition-colors shadow-md">접속하기</button>
               </div>
             </div>
@@ -254,11 +251,15 @@
                   <div className="p-5 flex flex-col flex-grow">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="text-xl font-bold text-gray-900">{item.name}</h3>
-                      <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
                         {item.type === 'space' ? `최대 ${item.capacity}인` : `총 ${item.quantity}개`}
                       </span>
                     </div>
-                    <p className="text-gray-600 text-sm mb-4 flex-grow whitespace-pre-line">{item.description}</p>
+                    <div className="flex items-start text-sm text-gray-600 mb-2">
+                      <MapPin className="w-4 h-4 mr-1 mt-0.5 flex-shrink-0 text-gray-400" />
+                      <span className="leading-tight">{item.location}</span>
+                    </div>
+                    <p className="text-gray-500 text-sm mb-4 flex-grow whitespace-pre-line">{item.description}</p>
                     <button onClick={() => { setSelectedItem(item); setIsModalOpen(true); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-colors mt-auto shadow-sm">
                       예약 신청하기
                     </button>
@@ -398,6 +399,7 @@
                   <div>
                     <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-md mb-1.5 inline-block">{item.type === 'space' ? '공간' : '기자재'}</span>
                     <p className="font-extrabold text-gray-900 text-lg">{item.name}</p>
+                    <p className="text-xs text-gray-600 mt-1 flex items-center"><MapPin className="w-3 h-3 mr-1" />{item.location.split('(')[0].trim()}</p>
                   </div>
                 </div>
 
