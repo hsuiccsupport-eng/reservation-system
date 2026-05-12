@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>한성대학교 창업기업육성ICC 예약시스템</title>
   
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
+  <!-- React & Babel for Standalone HTML -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
@@ -20,6 +22,7 @@
 <body>
   <div id="root"></div>
 
+  <!-- Firebase 로드 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -56,11 +59,12 @@
     const ChevronLeft = ({className}) => <IconWrapper className={className}><polyline points="15 18 9 12 15 6"></polyline></IconWrapper>;
     const ChevronRight = ({className}) => <IconWrapper className={className}><polyline points="9 18 15 12 9 6"></polyline></IconWrapper>;
 
+    // 💡 여기서 image 주소를 내 깃허브에 올린 사진 주소(예: './meeting.jpg')로 바꾸시면 됩니다!
     const INITIAL_ITEMS = [
-      { id: 1, type: 'space', name: '회의실', description: '회의 및 스터디 목적 (평일 09:00~20:00)', capacity: 8, image: 'https://placehold.co/400x300/1e3a8a/ffffff?text=Meeting+Room', startTime: 9, endTime: 20, isWeekendAllowed: false },
-      { id: 2, type: 'equipment', name: '3D 프린터', description: '시제품 제작용 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 4, image: 'https://placehold.co/400x300/047857/ffffff?text=3D+Printer', startTime: 9, endTime: 17, isWeekendAllowed: false },
-      { id: 3, type: 'equipment', name: '재봉틀 및 오버록', description: '의류 및 직물, 가장자리 마감 작업 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 6, image: 'https://placehold.co/400x300/047857/ffffff?text=Sewing+Machine', startTime: 9, endTime: 17, isWeekendAllowed: false },
-      { id: 4, type: 'equipment', name: '컴퓨터자수기', description: '사전교육 이수 필수 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 1, image: 'https://placehold.co/400x300/b91c1c/ffffff?text=Embroidery', startTime: 9, endTime: 17, isWeekendAllowed: false, requiresTraining: true },
+      { id: 1, type: 'space', name: '회의실', description: '회의 및 스터디 목적 (평일 09:00~20:00)', capacity: 8, image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 20, isWeekendAllowed: false },
+      { id: 2, type: 'equipment', name: '3D 프린터', description: '시제품 제작용 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 4, image: 'https://images.unsplash.com/photo-1631281956041-cb14dce72a39?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 17, isWeekendAllowed: false },
+      { id: 3, type: 'equipment', name: '재봉틀 및 오버록', description: '의류 및 직물, 가장자리 마감 작업 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 6, image: 'https://images.unsplash.com/photo-1528819622765-d6bcf132f793?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 17, isWeekendAllowed: false },
+      { id: 4, type: 'equipment', name: '컴퓨터자수기', description: '사전교육 이수 필수 (학기중 09:00~17:00 / 방학중 10:00~16:00)', quantity: 1, image: 'https://images.unsplash.com/photo-1620794108206-8c467a5dbbf1?auto=format&fit=crop&w=600&q=80', startTime: 9, endTime: 17, isWeekendAllowed: false, requiresTraining: true },
     ];
 
     const StatusBadge = ({ status }) => {
